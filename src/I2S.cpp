@@ -1,4 +1,4 @@
-#include <Arduino.h>
+/*#include <Arduino.h>
 #include "AudioGeneratorAAC.h"
 #include "AudioOutputI2S.h"
 #include "AudioFileSourcePROGMEM.h"
@@ -28,4 +28,4 @@ void I2S_play() {
   if (aac->isRunning()) {
     aac->loop();
   }
-}
+}*/
