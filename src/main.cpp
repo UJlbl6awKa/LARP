@@ -9,8 +9,8 @@ const uint8_t PIN_SS = 4;   // spi select pin
 
 /***********\ LED Strip /***********/
 #include "Adafruit_NeoPixel.h"
-
 Adafruit_NeoPixel strip(17, 15); // количество светодиодов и пин
+
 /***********\ HTML /***********/
 #define LED_BUILTIN 2
 #include <WiFi.h>
@@ -18,8 +18,8 @@ Adafruit_NeoPixel strip(17, 15); // количество светодиодов 
 #include <WebServer.h>
 WebServer server(80);
 
-const char *ssid = "onlime_8";
-const char *password = "9060547016";
+const char *ssid = "Кукушка";
+const char *password = "RVSNRMTO";
 char htmlResponse[3000];
 
 /***********\ I2S AUDIO /***********/
@@ -37,10 +37,11 @@ AudioFileSourcePROGMEM *in;
 AudioGeneratorAAC *aac;
 AudioOutputI2S *out;
 
-//millis
+// millis
 unsigned long prev_millis = 0;
 
 // флаги
+bool ledMask = true;
 bool ledFlag = false;
 bool I2SFlag = false;
 
@@ -50,9 +51,10 @@ bool I2SFlag = false;
 
 // для работы с HTML
 
-void handleRoot() {
-  snprintf ( htmlResponse, 3000,
-  "<!DOCTYPE html>\
+void handleRoot()
+{
+  snprintf(htmlResponse, 3000,
+           "<!DOCTYPE html>\
   <html lang=\"en\">\
     <head>\
       <meta charset=\"utf-8\">\
@@ -81,10 +83,11 @@ void handleRoot() {
         });\  
       </script>\
     </body>\
-  </html>"); 
-  server.send ( 200, "text/html", htmlResponse );  
+  </html>");
+  server.send(200, "text/html", htmlResponse);
   Serial.println("HANDLING ROOT");
 }
+
 void handleSave() // переделать
 {
   // Serial.println(server.args());
@@ -94,11 +97,13 @@ void handleSave() // переделать
     {
       digitalWrite(LED_BUILTIN, LOW);
       Serial.println("Changing LED state to OFF");
+      ledMask = false;
     }
     else
     {
       digitalWrite(LED_BUILTIN, HIGH);
       Serial.println("Changing LED state to ON");
+      ledMask = true;
     }
   }
 }
@@ -130,13 +135,6 @@ void inactiveDevice(DW1000Device *device)
   Serial.println(device->getShortAddress(), HEX);
 }
 
-/*
-void ledEffect()
-{
-
-}
-*/
-
 /******************************************************/
 //                     ПУПА и ЛУПА
 /******************************************************/
@@ -144,10 +142,35 @@ void ledEffect()
 void setup()
 {
   Serial.begin(115200); // UART
+
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+  server.on("/", handleRoot);
+  server.on("/save", handleSave);
+  server.begin();
+  Serial.println("HTTP server started");
+
   delay(1000);
 
   /* настройка светодиодки*/
-  strip.begin()
+  strip.begin();
   /* настройка DW1000*/
   DW1000Ranging.initCommunication(PIN_RST, PIN_SS, PIN_IRQ); // Reset, CS, IRQ pin
   // define the sketch as anchor. It will be great to dynamically change the type of module
@@ -169,34 +192,47 @@ void setup()
 }
 
 void loop()
-{ /*
+{
   // опрос датчика
   if (millis() - prev_millis >= 10)
   {
     prev_millis = millis();
 
     DW1000Ranging.loop();
-    handleRoot();
-  }
+    server.handleClient();
 
-  if (DW1000Ranging.getDistantDevice()->getRange() <= 0.5)
-  {
-    ledFlag = true;
-  }
-
-  if (ledFlag = true)
-  {
-  }
-  else
-  {
-  }
-
-  if (I2SFlag = true)
-  {
-    if (aac->isRunning())
+    if (DW1000Ranging.getDistantDevice()->getRange() <= 0.5)
     {
-      aac->loop();
+      ledFlag = true;
+      I2SFlag = true;
     }
-  }*/
+    else
+    {
+      ledFlag = false;
+      I2SFlag = false;
+    }
+    
+    if (ledFlag & ledMask)
+    {
+      for (uint8_t i; i <= strip.numPixels(); i++){
+        strip.setPixelColor(i, 0, 128, 0);
+      }
+      strip.show();
+    }
+    else
+    {
+      for (uint8_t i; i <= strip.numPixels(); i++){
+        strip.setPixelColor(i, 0, 0, 0);
+      }
+       strip.show();
+    }
+    
+    if (I2SFlag)
+    {
+      if (aac->isRunning())
+      {
+        aac->loop();
+      }
+    }
+  }
 }
-
