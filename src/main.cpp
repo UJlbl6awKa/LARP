@@ -1,194 +1,23 @@
-/***********\ DW 1000 /***********/
-#include <SPI.h>
-#include "DW1000Ranging.h"
+#include "LARP.h"
 
-// connection pins
-const uint8_t PIN_RST = 27; // reset pin
-const uint8_t PIN_IRQ = 34; // irq pin
-const uint8_t PIN_SS = 4;   // spi select pin
-
-/***********\ LED Strip /***********/
-#include "Adafruit_NeoPixel.h"
 Adafruit_NeoPixel strip(17, 15); // количество светодиодов и пин
-
-/***********\ HTML /***********/
-#define LED_BUILTIN 2
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <WebServer.h>
-WebServer server(80);
-
-const char *ssid = "Кукушка";
-const char *password = "RVSNRMTO";
-char htmlResponse[3000];
-
-/***********\ I2S AUDIO /***********/
-#include "AudioGeneratorAAC.h"
-#include "AudioOutputI2S.h"
-#include "AudioFileSourcePROGMEM.h"
-#include "sampleaac.h"
-
-#define Bit_Clock_BCLK 14
-#define Word_Select_WS 13
-#define Serial_Data_SD 12
-#define GAIN 1
-
-AudioFileSourcePROGMEM *in;
-AudioGeneratorAAC *aac;
-AudioOutputI2S *out;
 
 // millis
 unsigned long prev_millis = 0;
-
-// флаги
-bool ledMask = true;
-bool ledFlag = false;
-bool I2SFlag = false;
-
-/******************************************************/
-//                       ФУНКЦИИ
-/******************************************************/
-
-// для работы с HTML
-
-void handleRoot()
-{
-  snprintf(htmlResponse, 3000,
-           "<!DOCTYPE html>\
-  <html lang=\"en\">\
-    <head>\
-      <meta charset=\"utf-8\">\
-      <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
-    </head>\
-    <body>\
-      <h1>LED</h1>\
-      <div>\
-      <button id=\"led_button_on\">Turn on LED</button><button id=\"led_button_off\">Turn off LED</button>\
-      </div>\   
-      <script src=\"https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js\"></script>\    
-      <script>\
-        $('#led_button_off').click(function(e){\
-          e.preventDefault();\
-          var led=1;\
-          $.get('/save?led=' + led, function(data){\
-            console.log(data);\
-          });\
-        });\   
-        $('#led_button_on').click(function(e){\
-          e.preventDefault();\
-          var led=2;\
-          $.get('/save?led=' + led, function(data){\
-            console.log(data);\
-          });\
-        });\  
-      </script>\
-    </body>\
-  </html>");
-  server.send(200, "text/html", htmlResponse);
-  Serial.println("HANDLING ROOT");
-}
-
-void handleSave() // переделать
-{
-  // Serial.println(server.args());
-  if (server.args() == 1)
-  {
-    if (server.arg("led").toInt() == 1)
-    {
-      digitalWrite(LED_BUILTIN, LOW);
-      Serial.println("Changing LED state to OFF");
-      ledMask = false;
-    }
-    else
-    {
-      digitalWrite(LED_BUILTIN, HIGH);
-      Serial.println("Changing LED state to ON");
-      ledMask = true;
-    }
-  }
-}
-
-// UWB
-
-void newRange()
-{
-  Serial.print("from: ");
-  Serial.print(DW1000Ranging.getDistantDevice()->getShortAddress(), HEX);
-  Serial.print("\t Range: ");
-  Serial.print(DW1000Ranging.getDistantDevice()->getRange());
-  Serial.print(" m");
-  Serial.print("\t RX power: ");
-  Serial.print(DW1000Ranging.getDistantDevice()->getRXPower());
-  Serial.println(" dBm");
-}
-
-void newDevice(DW1000Device *device)
-{
-  Serial.print("ranging init; 1 device added ! -> ");
-  Serial.print(" short:");
-  Serial.println(device->getShortAddress(), HEX);
-}
-
-void inactiveDevice(DW1000Device *device)
-{
-  Serial.print("delete inactive device: ");
-  Serial.println(device->getShortAddress(), HEX);
-}
-
-/******************************************************/
-//                     ПУПА и ЛУПА
-/******************************************************/
 
 void setup()
 {
   Serial.begin(115200); // UART
 
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH);
-  Serial.begin(115200);
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-  }
-
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-  server.on("/", handleRoot);
-  server.on("/save", handleSave);
-  server.begin();
-  Serial.println("HTTP server started");
+  htmlStart();        // подключение к wi-fi 
 
   delay(1000);
 
-  /* настройка светодиодки*/
-  strip.begin();
-  /* настройка DW1000*/
-  DW1000Ranging.initCommunication(PIN_RST, PIN_SS, PIN_IRQ); // Reset, CS, IRQ pin
-  // define the sketch as anchor. It will be great to dynamically change the type of module
-  DW1000Ranging.attachNewRange(newRange);
-  DW1000Ranging.attachNewDevice(newDevice);
-  DW1000Ranging.attachInactiveDevice(inactiveDevice);
-  // Enable the filter to smooth the distance
-  DW1000Ranging.useRangeFilter(true);
-  DW1000Ranging.startAsTag("7D:00:22:EA:82:60:3B:9C", DW1000.MODE_LONGDATA_RANGE_ACCURACY); // we start the module as a tag
+  handleRoot();       // запуск сервера
+  uwbSetup();         // настройка dw1000
+  i2sStart();         // запуск I2S
+  strip.begin();      // настройка светодиодки
 
-  /* настройка DW1000*/
-  audioLogger = &Serial;
-  in = new AudioFileSourcePROGMEM(sampleaac, sizeof(sampleaac));
-  aac = new AudioGeneratorAAC();
-  out = new AudioOutputI2S();
-  out->SetGain(GAIN);
-  out->SetPinout(Bit_Clock_BCLK, Word_Select_WS, Serial_Data_SD);
-  aac->begin(in, out);
 }
 
 void loop()
@@ -211,22 +40,24 @@ void loop()
       ledFlag = false;
       I2SFlag = false;
     }
-    
+
     if (ledFlag & ledMask)
     {
-      for (uint8_t i; i <= strip.numPixels(); i++){
+      for (uint8_t i; i <= strip.numPixels(); i++)
+      {
         strip.setPixelColor(i, 0, 128, 0);
       }
       strip.show();
     }
     else
     {
-      for (uint8_t i; i <= strip.numPixels(); i++){
+      for (uint8_t i; i <= strip.numPixels(); i++)
+      {
         strip.setPixelColor(i, 0, 0, 0);
       }
-       strip.show();
+      strip.show();
     }
-    
+
     if (I2SFlag)
     {
       if (aac->isRunning())
