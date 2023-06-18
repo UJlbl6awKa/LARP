@@ -10,6 +10,9 @@
 #define ANCHOR2 "02:00:22:EA:82:60:3B:9B"
 #define TAG1 "73:00:22:EA:82:60:3B:9C"
 
+uint16_t anc1_short_adress = 1;
+uint16_t anc2_short_adress = 2;
+
 State state = IDLE;
 
 // connection pins
@@ -48,52 +51,50 @@ void UWB_loop()
 
 void newRange()
 {
-  // Serial.print("from: ");
-  // Serial.print(DW1000Ranging.getDistantDevice()->getShortAddress(), HEX);
-  // Serial.print("\t Range: ");
-  // Serial.print(DW1000Ranging.getDistantDevice()->getRange());
-  // Serial.print(" m");
-  // Serial.print("\t RX power: ");
-  // Serial.print(DW1000Ranging.getDistantDevice()->getRXPower());
-  // Serial.println(" dBm\t");
-  uint16_t anc1_short_adress = 1;
-  uint16_t anc2_short_adress = 2;
-  Serial.print(anc1_short_adress);
-
+  Serial.print("from: ");
+  Serial.print(DW1000Ranging.getDistantDevice()->getShortAddress(), HEX);
+  Serial.print("\t Range: ");
+  Serial.print(DW1000Ranging.getDistantDevice()->getRange());
+  Serial.print(" m");
+  Serial.print("\t RX power: ");
+  Serial.print(DW1000Ranging.getDistantDevice()->getRXPower());
+  Serial.print(" dBm\t");
+  Serial.print("State: ");
+  Serial.println(state);
   if (anc1_short_adress == DW1000Ranging.getDistantDevice()->getShortAddress())
   {
-    if (DW1000Ranging.getDistantDevice()->getRange() < 1.5)
+    if (DW1000Ranging.getDistantDevice()->getRange() <= 1.0)
     {
-      if (state == IDLE)
-      {
-        state = STATE1;
-        Serial.println("\n\n\nState Changed 1\n\n\n");
-      }
+      state = STATE2;
+    }
+    else
+    {
+      state = IDLE;
     }
   }
 
   if (anc2_short_adress == DW1000Ranging.getDistantDevice()->getShortAddress())
   {
-    if (DW1000Ranging.getDistantDevice()->getRange() < 1.5)
+    if (DW1000Ranging.getDistantDevice()->getRange() <= 1.5)
     {
-      if (state == STATE1)
-      {
-        state = STATE2;
-        Serial.println("\n\n\nState Changed 2\n\n\n");
-      }
+      state = STATE1;
+    }
+    else
+    {
+      state = IDLE;
     }
   }
 }
 
-  void newDevice(DW1000Device * device)
-  {
-    Serial.print("ranging init; 1 device added ! -> ");
-    Serial.print(" short:");
-    Serial.println(device->getShortAddress(), HEX);
-  }
+void newDevice(DW1000Device *device)
+{
+  Serial.print("ranging init; 1 device added ! -> ");
+  Serial.print(" short:");
+  Serial.println(device->getShortAddress(), HEX);
+}
 
-  void inactiveDevice(DW1000Device * device)
-  {
-    Serial.print("delete inactive device: ");
-    Serial.println(device->getShortAddress(), HEX);
-  }
+void inactiveDevice(DW1000Device *device)
+{
+  Serial.print("delete inactive device: ");
+  Serial.println(device->getShortAddress(), HEX);
+}

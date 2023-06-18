@@ -25,10 +25,11 @@ void setup()
 void loop()
 {
     UWB_loop();
-    if (millis() - prev_millis >= 1000)
-    {
-        prev_millis = millis();
 
+    // if (millis() - prev_millis >= 1)
+    // {
+    //     prev_millis = millis();
+        
         if(state == IDLE)
         {
             effect_off();
@@ -43,25 +44,22 @@ void loop()
         {
             effect2();
         }
-    }
+    //}
 }
 
 void effect_off()
 {
     led_off();
-    vibro_off();
-    Serial.println("выкл"); 
+    //vibro_off();
 }
 
 void effect1()
 {
     led_rainbow();
     vibro_set(10);
-    Serial.println("Произошло что-то");
 }
 
 void effect2()
 {
     led_color(255, 0, 0);
-    Serial.print("произошло что-то побольше");
 }
