@@ -1,13 +1,22 @@
-/***********\ DW 1000 header file /***********/
-#include <SPI.h>
-#include <DW1000Ranging.h>
+/***********\ DWM 1000 /***********/
+#pragma once
+#include "DW1000Device.h"
 
-// connection pins
-const uint8_t PIN_RST = 27; // reset pin
-const uint8_t PIN_IRQ = 34; // irq pin
-const uint8_t PIN_SS = 4;   // spi select pin
+enum State
+{
+    IDLE,
+    STATE1,
+    STATE2
+};
 
-void uwbSetup();
+extern State state;
+
+void UWB_init();
+
+void UWB_loop();
+
 void newRange();
-void newDevice(DW1000Device *device);
-void inactiveDevice(DW1000Device *device);
+
+void newDevice(DW1000Device* device);
+
+void inactiveDevice(DW1000Device* device);
