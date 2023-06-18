@@ -1,69 +1,67 @@
-#include "LARP.h"
+#include "audio.h"
+#include "ledstrip.h"
+#include "Arduino.h"
+#include "vibration.h"
+#include "UWB.h"
 
-Adafruit_NeoPixel strip(17, 15); // количество светодиодов и пин
+unsigned long prev_millis;
 
-// millis
-unsigned long prev_millis = 0;
+// flags
+bool FSM_flag = true;
+
+void effect_off();
+void effect1();
+void effect2();
 
 void setup()
 {
-  Serial.begin(115200); // UART
-
-  htmlStart();        // подключение к wi-fi 
-
-  delay(1000);
-
-  handleRoot();       // запуск сервера
-  uwbSetup();         // настройка dw1000
-  i2sStart();         // запуск I2S
-  strip.begin();      // настройка светодиодки
-
+    Serial.begin(115200);
+    led_init();
+    vibro_init();
+    UWB_init();
 }
+
 
 void loop()
 {
-  // опрос датчика
-  if (millis() - prev_millis >= 10)
-  {
-    prev_millis = millis();
+    UWB_loop();
+    if (millis() - prev_millis >= 1000)
+    {
+        prev_millis = millis();
 
-    DW1000Ranging.loop();
-    server.handleClient();
+        if(state == IDLE)
+        {
+            effect_off();
+        }
 
-    if (DW1000Ranging.getDistantDevice()->getRange() <= 0.5)
-    {
-      ledFlag = true;
-      I2SFlag = true;
+        if(state == STATE1)
+        {
+            effect1();
+        }
+        
+        if(state == STATE2)
+        {
+            effect2();
+        }
     }
-    else
-    {
-      ledFlag = false;
-      I2SFlag = false;
-    }
+}
 
-    if (ledFlag & ledMask)
-    {
-      for (uint8_t i; i <= strip.numPixels(); i++)
-      {
-        strip.setPixelColor(i, 0, 128, 0);
-      }
-      strip.show();
-    }
-    else
-    {
-      for (uint8_t i; i <= strip.numPixels(); i++)
-      {
-        strip.setPixelColor(i, 0, 0, 0);
-      }
-      strip.show();
-    }
+void effect_off()
+{
+    led_off();
+    vibro_off();
+    Serial.println("выкл"); 
+}
 
-    if (I2SFlag)
-    {
-      if (aac->isRunning())
-      {
-        aac->loop();
-      }
-    }
-  }
+void effect1()
+{
+    led_rainbow();
+    vibro_set(10);
+    Serial.println("Произошло что-то");
+}
+
+void effect2()
+{
+    led_color(255, 0, 0);
+    Serial.print("произошло что-то побольше");
 }
